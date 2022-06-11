@@ -1,7 +1,7 @@
-#include <stdio.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define tamIN 200
 #define tamCir 5
@@ -12,22 +12,23 @@ int bfCir[tamCir];
 int bfOUT[tamOUT];
 
 //variável com a posição a ser processada do bfIN
-int posBfIN=0;
+int posBfIN = 0;
 int posBfOUT = 0;
 
-sem_t full, empty;
+sem_t full;
+sem_t empty;
 
 pthread_mutex_t mutex;
 
-void produtora() {
+void *produtora(void* arg) {
 	int media;
 	while(posBfIN+2 < tamIN){
 		sem_wait(&empty);
-		pthreah_mutex_lock(&mutex);
+		pthread_mutex_lock(&mutex);
 		//variável que guarda a média de três posições consecutivas
 		media = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
 		posBfIN++;
-		pthreah_mutex_unlock(&mutex);
+		pthread_mutex_unlock(&mutex);
 
 		for (int i = 0; i < tamCir; i++){
 			if (bfCir[i] == 0) {
@@ -45,7 +46,7 @@ void produtora() {
 
 }
 
-void consumidora() {
+void *consumidora(void* arg) {
 	sem_wait(&full);
 	for (int i = 0; i < tamCir; i++) {
 		if (bfCir[i] != 0) {
@@ -79,10 +80,9 @@ int main() {
 		bfIN[i] = 0;
 	}
 
-	if (pthread_mutex_init(&mutex, NULL) != 0) {
-		printf("\n mutex init has failed\n");
-		return 1;
-	}
+	pthread_mutex_init(&mutex, NULL);
+	sem_init(&empty, 0, tamCir);
+	sem_init(&full, 0, 0);
 
 	//cria as threads produtoras e consumidora
 	pthread_create(&PM_T1, NULL, produtora, NULL);
