@@ -21,19 +21,19 @@ sem_t empty;
 pthread_mutex_t mutex;
 
 void *produtora(void* arg) {
-	int media;
-	while(posBfIN+2 < tamIN){
+	while(posBfIN < tamIN - 2){
 		sem_wait(&empty);
 		pthread_mutex_lock(&mutex);
 		//variável que guarda a média de três posições consecutivas
-		media = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
+		int media = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
 		posBfIN++;
-		pthread_mutex_unlock(&mutex);
+		
 
 		for (int i = 0; i < tamCir; i++){
 			if (bfCir[i] == 0) {
 				bfCir[i] = media;
 				sem_post(&full);
+				pthread_mutex_lock(&mutex);
 				break;
 			}
 		}
@@ -47,19 +47,20 @@ void *produtora(void* arg) {
 }
 
 void *consumidora(void* arg) {
-	sem_wait(&full);
-	for (int i = 0; i < tamCir; i++) {
-		if (bfCir[i] != 0) {
-			bfOUT[posBfOUT] = bfCir[i];
-			posBfOUT++;
-			sem_post(&empty);
+	while (posBfOUT < tamOUT - 2) {
+		sem_wait(&full);
+		for (int i = 0; i < tamCir; i++) {
+			if (bfCir[i] != 0) {
+				bfOUT[posBfOUT] = bfCir[i];
+				posBfOUT++;
+				sem_post(&empty);
+			}
+		}
+		printf("Buffer OUT : ");
+		for (int i = 0; i < tamOUT; i++) {
+			printf("%d |", bfOUT[i]);
 		}
 	}
-	printf("Buffer OUT : ");
-	for (int i = 0; i < tamOUT; i++) {
-		printf("%d |", bfOUT[i]);
-	}
-	
 }
 
 int main() {
