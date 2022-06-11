@@ -21,11 +21,18 @@ sem_t empty;
 pthread_mutex_t mutex;
 
 void *produtora(void* arg) {
+	int media;
 	while(posBfIN < tamIN - 2){
 		sem_wait(&empty);
 		pthread_mutex_lock(&mutex);
 		//variável que guarda a média de três posições consecutivas
-		int media = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
+		int pos = posBfIN;
+		int aux1 = (int) bfIN[pos];
+		pos++;
+		int aux2 = (int)bfIN[pos];
+		pos++;
+		int aux3 = (int)bfIN[pos];
+		media = (aux1 + aux2 + aux3) / 3;
 		posBfIN++;
 		
 
@@ -33,7 +40,7 @@ void *produtora(void* arg) {
 			if (bfCir[i] == 0) {
 				bfCir[i] = media;
 				sem_post(&full);
-				pthread_mutex_lock(&mutex);
+				pthread_mutex_unlock(&mutex);
 				break;
 			}
 		}
@@ -76,9 +83,14 @@ int main() {
 		j++;
 	}
 
+	/*printf("Buffer IN : ");
+	for (int i = 0; i < tamIN; i++) {
+		printf("%d |", bfIN[i]);
+	}*/
+
 	//ciclo for para encher o bfIN com zeros
 	for (int i = 0; i < tamCir; i++) {
-		bfIN[i] = 0;
+		bfCir[i] = 0;
 	}
 
 	pthread_mutex_init(&mutex, NULL);
@@ -87,12 +99,12 @@ int main() {
 
 	//cria as threads produtoras e consumidora
 	pthread_create(&PM_T1, NULL, produtora, NULL);
-	pthread_create(&PM_T2, NULL, produtora, NULL);
+	//pthread_create(&PM_T2, NULL, produtora, NULL);
 	pthread_create(&CM_T, NULL, consumidora, NULL);
 
 	//executa as threads produtoras e consumidora até terminarem
 	pthread_join(PM_T1, NULL);
-	pthread_join(PM_T2, NULL);
+	//pthread_join(PM_T2, NULL);
 	pthread_join(CM_T, NULL);
 
 }
