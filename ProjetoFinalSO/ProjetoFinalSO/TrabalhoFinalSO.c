@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define tamIN 200
-#define tamCir 5
-#define tamOUT 198
+#define tamIN 100
+#define tamCir 2
+#define tamOUT 98
 
 int bfIN[tamIN];
 int bfCir[tamCir];
@@ -20,23 +20,17 @@ sem_t empty;
 
 pthread_mutex_t mutex;
 
-void *produtora(void* arg) {
+void* produtora(void* arg) {
 	int media;
-	while(posBfIN < tamIN - 2){
+	while (posBfIN < tamIN - 2) {
 		sem_wait(&empty);
 		pthread_mutex_lock(&mutex);
 		//variável que guarda a média de três posições consecutivas
-		int pos = posBfIN;
-		int aux1 = (int) bfIN[pos];
-		pos++;
-		int aux2 = (int)bfIN[pos];
-		pos++;
-		int aux3 = (int)bfIN[pos];
-		media = (aux1 + aux2 + aux3) / 3;
+		media = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
 		posBfIN++;
-		
 
-		for (int i = 0; i < tamCir; i++){
+
+		for (int i = 0; i < tamCir; i++) {
 			if (bfCir[i] == 0) {
 				bfCir[i] = media;
 				sem_post(&full);
@@ -44,29 +38,31 @@ void *produtora(void* arg) {
 				break;
 			}
 		}
-		printf("Buffer CIRC : ");
+		/*printf("Buffer CIRC : ");
 		for (int i = 0; i < tamCir; i++) {
-			printf("%d |",bfCir[i]);
+			printf("%d |", bfCir[i]);
 		}
+		printf("\n");*/
 	}
 
 
 }
 
-void *consumidora(void* arg) {
-	while (posBfOUT < tamOUT - 2) {
+void* consumidora(void* arg) {
+	while (posBfOUT < tamOUT) {
 		sem_wait(&full);
 		for (int i = 0; i < tamCir; i++) {
 			if (bfCir[i] != 0) {
 				bfOUT[posBfOUT] = bfCir[i];
+				bfCir[i] = 0;
 				posBfOUT++;
 				sem_post(&empty);
 			}
 		}
-		printf("Buffer OUT : ");
+		/*printf("Buffer OUT : ");
 		for (int i = 0; i < tamOUT; i++) {
 			printf("%d |", bfOUT[i]);
-		}
+		}*/
 	}
 }
 
@@ -75,12 +71,9 @@ int main() {
 	//declaração das variáveis thread
 	pthread_t PM_T1, PM_T2, CM_T;
 
-	//variável que assume os valores do bfIN de 1 a 20000
-	int j = 1;
 	//ciclo for para encher o bfIN com números
-	for (int i = 0; i < tamIN; i++) {
+	for (int i = 0, j = 1; i < tamIN; i++,j++) {
 		bfIN[i] = j;
-		j++;
 	}
 
 	/*printf("Buffer IN : ");
@@ -99,12 +92,24 @@ int main() {
 
 	//cria as threads produtoras e consumidora
 	pthread_create(&PM_T1, NULL, produtora, NULL);
-	//pthread_create(&PM_T2, NULL, produtora, NULL);
+	pthread_create(&PM_T2, NULL, produtora, NULL);
 	pthread_create(&CM_T, NULL, consumidora, NULL);
 
 	//executa as threads produtoras e consumidora até terminarem
 	pthread_join(PM_T1, NULL);
-	//pthread_join(PM_T2, NULL);
+	pthread_join(PM_T2, NULL);
 	pthread_join(CM_T, NULL);
+
+ 	printf("Buffer OUT : ");
+	for (int i = 0; i < tamOUT; i++) {
+		printf("%d |", bfOUT[i]);
+	}
+	printf("\n\n");
+
+	printf("Buffer CIRC : ");
+	for (int i = 0; i < tamCir; i++) {
+		printf("%d |", bfCir[i]);
+	}
+	printf("\n");
 
 }
