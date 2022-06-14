@@ -15,19 +15,24 @@ int bfOUT[tamOUT];
 int posBfIN = 0;
 int posBfOUT = 0;
 
-pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
-pthread_cond_t full = PTHREAD_COND_INITIALIZER;
+sem_t full;
+sem_t empty;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+int countP1 = 0;
+int countP2 = 0;
+int countC = 0;
 
-void* produtora(void* arg) {
+
+void* produtora(void* cont) {
 	while (posBfIN < tamIN - 3) {
-		pthread_cond_wait(&empty, &mutex);
+		sem_wait(&empty);
 		pthread_mutex_lock(&mutex);		
 		//variável que guarda a média de três posições consecutivas
 		bfCir[posBfIN % tamCir] = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
+		*((int*)cont) += 1;
 		posBfIN++;
-		pthread_cond_signal(&full);
+		sem_post(&full);
 		pthread_mutex_unlock(&mutex);
 		
 		/*printf("Buffer CIRC : ");
@@ -39,13 +44,15 @@ void* produtora(void* arg) {
 
 }
 
-void* consumidora(void* arg) {
+
+void* consumidora(void* cont) {
 	while (posBfOUT < tamOUT) {
-		pthread_cond_wait(&full, &mutex);
+		sem_wait(&full);
 		bfOUT[posBfOUT] = bfCir[posBfOUT % tamCir];
 		bfCir[posBfOUT % tamCir] = 0;
+		*((int*)cont) += 1;
 		posBfOUT++;
-		pthread_cond_signal(&empty);
+		sem_post(&empty);
 		/*printf("Buffer OUT : ");
 		for (int i = 0; i < tamOUT; i++) {
 			printf("%d |", bfOUT[i]);
@@ -77,13 +84,11 @@ int main() {
 	sem_init(&empty, 0, tamCir);
 	sem_init(&full, 0, 0);
 
-	int countP1 = 0;
-	int countP2 = 0;
-	int countC1 = 0;
+
 	//cria as threads produtoras e consumidora
-	pthread_create(&PM_T1, NULL, produtora, countP1);
-	pthread_create(&PM_T2, NULL, produtora, countP2);
-	pthread_create(&CM_T, NULL, consumidora, countC1);
+	pthread_create(&PM_T1, NULL, produtora, &countP1);
+	pthread_create(&PM_T2, NULL, produtora, &countP2);
+	pthread_create(&CM_T, NULL, consumidora, &countC);
 
 	//executa as threads produtoras e consumidora até terminarem
 	pthread_join(PM_T1, NULL);
@@ -102,8 +107,9 @@ int main() {
 	}
 	printf("\n");
 
-	printf("%d |", countP1);
-	printf("%d |", countP2);
-	printf("%d |", countC1);
+	printf("\n Produtora 1: %d ", countP1);
+	printf("\n Produtora 2:  %d ", countP2);
+	printf("\n Consumidora :  %d \n", countC);
+
 
 }
