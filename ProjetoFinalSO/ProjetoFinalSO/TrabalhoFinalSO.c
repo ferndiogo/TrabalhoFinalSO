@@ -19,6 +19,8 @@ sem_t full;
 sem_t empty;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+//Contador para apresentar quantas vezes as threads produziram 
+//e consumiram elementos
 int countP1 = 0;
 int countP2 = 0;
 int countC = 0;
@@ -107,9 +109,9 @@ int main() {
 	}
 	printf("\n");
 
-	printf("\n Produtora 1: %d ", countP1);
-	printf("\n Produtora 2:  %d ", countP2);
-	printf("\n Consumidora :  %d \n", countC);
+	printf("\nProdutora 1: %d ", countP1);
+	printf("\nProdutora 2:  %d ", countP2);
+	printf("\nConsumidora: %d \n", countC);
 
 
 }
