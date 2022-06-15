@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define tamIN 20000
-#define tamCir 50
-#define tamOUT 19998
+#define tamIN 200
+#define tamCir 5
+#define tamOUT 198
 
 int bfIN[tamIN];
 int bfCir[tamCir];
@@ -15,27 +15,30 @@ int bfOUT[tamOUT];
 int posBfIN = 0;
 int posBfOUT = 0;
 
+int verRead = 0;//Quantas posiçoes ocupadas no buffer circular
 
-//Contador para apresentar quantas vezes as threads produziram
-//e consumiram elementos
+pthread_cond_t full = PTHREAD_COND_INITIALIZER;
+pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t mutexProd = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutexCons = PTHREAD_MUTEX_INITIALIZER;
+
 int countP1 = 0;
 int countP2 = 0;
 int countC = 0;
-pthread_mutex_t empty, full, mutex;
+
 
 void* produtora(void* cont) {
 	while (posBfIN < tamIN - 3) {
-		//bloquear
-		pthread_mutex_lock(&empty);
-		pthread_mutex_lock(&mutex);
-
+		while (verRead >= tamCir - 1)
+			pthread_cond_wait(&empty, &mutexProd);
+		pthread_mutex_lock(&mutexProd);
 		//variável que guarda a média de três posições consecutivas
 		bfCir[posBfIN % tamCir] = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
 		*((int*)cont) += 1;
 		posBfIN++;
-		//desbloquear
-		pthread_mutex_unlock(&full);
-		pthread_mutex_unlock(&mutex);
+		verRead++;
+		pthread_cond_signal(&full);
+		pthread_mutex_unlock(&mutexProd);
 
 		/*printf("Buffer CIRC : ");
 		for (int i = 0; i < tamCir; i++) {
@@ -49,18 +52,16 @@ void* produtora(void* cont) {
 
 void* consumidora(void* cont) {
 	while (posBfOUT < tamOUT) {
-		//bloquear
-		pthread_mutex_lock(&full);
-		pthread_mutex_lock(&mutex);
-
+		while (verRead <= 0)
+			pthread_cond_wait(&full, &mutexCons);
+		pthread_mutex_lock(&mutexCons);
 		bfOUT[posBfOUT] = bfCir[posBfOUT % tamCir];
 		bfCir[posBfOUT % tamCir] = 0;
 		*((int*)cont) += 1;
 		posBfOUT++;
-		//desbloquear
-		pthread_mutex_unlock(&empty);
-		pthread_mutex_unlock(&mutex);
-
+		verRead--;
+		pthread_cond_signal(&empty);
+		pthread_mutex_unlock(&mutexCons);
 		/*printf("Buffer OUT : ");
 		for (int i = 0; i < tamOUT; i++) {
 			printf("%d |", bfOUT[i]);
@@ -82,16 +83,6 @@ int main() {
 	for (int i = 0; i < tamIN; i++) {
 		printf("%d |", bfIN[i]);
 	}*/
-
-	//ciclo for para encher o bfIN com zeros
-	for (int i = 0; i < tamCir; i++) {
-		bfCir[i] = 0;
-	}
-
-	pthread_mutex_init(&empty, NULL);
-	pthread_mutex_init(&full, NULL);
-	pthread_mutex_init(&mutex, NULL);
-
 
 	//cria as threads produtoras e consumidora
 	pthread_create(&PM_T1, NULL, produtora, &countP1);
@@ -115,9 +106,9 @@ int main() {
 	}
 	printf("\n");
 
-	printf("\nProdutora 1: %d ", countP1);
-	printf("\nProdutora 2:  %d ", countP2);
-	printf("\nConsumidora: %d \n", countC);
+	printf("\n Produtora 1: %d ", countP1);
+	printf("\n Produtora 2:  %d ", countP2);
+	printf("\n Consumidora :  %d \n", countC);
 
 
 }
