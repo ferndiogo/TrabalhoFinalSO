@@ -12,6 +12,12 @@ int bfOUT[tamOUT];
 pthread_t thread1;
 pthread_t thread2;
 
+//Contador para apresentar quantas vezes as threads produziram
+//e consumiram elementos
+int countP1 = 0;
+int countP2 = 0;
+int countC = 0;
+
 struct {
     pthread_mutex_t lock; // threads que vão estar bloqueadas
     pthread_cond_t cond; // condição para verificar se pode continuar a produzir ou não
@@ -42,9 +48,9 @@ int main() {
 
     pthread_t PM_T1, PM_T2, CM_T;
 
-    pthread_create(&PM_T1, NULL, producer, NULL); //inicializaçao de thread produtora
-    pthread_create(&PM_T2, NULL, producer, NULL); //inicializaçao de thread produtora
-    pthread_create(&CM_T, NULL, consumer, NULL); //inicializaçao de thread consumidora
+    pthread_create(&PM_T1, NULL, producer, &countP1); //inicializaçao de thread produtora
+    pthread_create(&PM_T2, NULL, producer, &countP2); //inicializaçao de thread produtora
+    pthread_create(&CM_T, NULL, consumer, &countC); //inicializaçao de thread consumidora
 
     pthread_join(PM_T1, NULL);
     pthread_join(PM_T2, NULL);
@@ -62,11 +68,15 @@ int main() {
     }
     printf("\n\n");
 
+    printf("\nProdutora 1: %d ", countP1);
+    printf("\nProdutora 2:  %d ", countP2);
+    printf("\nConsumidora: %d \n", countC);
+
     return 0;
 }
 
 
-void* producer(void* arg) {
+void* producer(void* count) {
 
     while(1) {
 
@@ -95,7 +105,7 @@ void* producer(void* arg) {
 
         pthread_mutex_unlock(&get.lock);
 
-        //  *((int *) arg) += 1;
+        *((int *) count) += 1;
 
 
     }
@@ -103,7 +113,7 @@ void* producer(void* arg) {
 
 }
 
-void* consumer(void* arg) {
+void* consumer(void* count) {
 
     while(1) {
 
@@ -134,7 +144,7 @@ void* consumer(void* arg) {
         pthread_mutex_unlock(&put.lock);
 
 
-        // *((int *) arg) += 1;
+        *((int *) count) += 1;
 
 
 
