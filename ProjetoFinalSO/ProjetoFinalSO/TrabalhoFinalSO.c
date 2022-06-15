@@ -1,114 +1,143 @@
-#include <pthread.h>
-#include <semaphore.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
 
-#define tamIN 200
-#define tamCir 5
-#define tamOUT 198
+#define tamIN 20000
+#define tamCirc 50
+#define tamOUT 19998
 
 int bfIN[tamIN];
-int bfCir[tamCir];
+int bfCirc[tamCirc];
 int bfOUT[tamOUT];
+pthread_t thread1;
+pthread_t thread2;
 
-//variável com a posição a ser processada do bfIN
-int posBfIN = 0;
-int posBfOUT = 0;
+struct {
+    pthread_mutex_t lock; // threads que vão estar bloqueadas
+    pthread_cond_t cond; // condição para verificar se pode continuar a produzir ou não
+    int iIndex; //indice do buffer_in ao qual vai ser feita a media= (buffer_in[put.iIndex]+buffer_in[put.iIndex+1]+buffer_in[put.iIndex+2])/3
+    int circIndex; //indice do buffer_circ onde vai ser colocado o valor da media
 
-int verRead = 0;//Quantas posiçoes ocupadas no buffer circular
+} put = { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER };
 
-pthread_cond_t full = PTHREAD_COND_INITIALIZER;
-pthread_cond_t empty = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutexProd = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutexCons = PTHREAD_MUTEX_INITIALIZER;
-
-int countP1 = 0;
-int countP2 = 0;
-int countC = 0;
-
-
-void* produtora(void* cont) {
-	while (posBfIN < tamIN - 3) {
-		while (verRead >= tamCir - 1)
-			pthread_cond_wait(&empty, &mutexProd);
-		pthread_mutex_lock(&mutexProd);
-		//variável que guarda a média de três posições consecutivas
-		bfCir[posBfIN % tamCir] = (bfIN[posBfIN] + bfIN[posBfIN + 1] + bfIN[posBfIN + 2]) / 3;
-		*((int*)cont) += 1;
-		posBfIN++;
-		verRead++;
-		pthread_cond_signal(&full);
-		pthread_mutex_unlock(&mutexProd);
-
-		/*printf("Buffer CIRC : ");
-		for (int i = 0; i < tamCir; i++) {
-			printf("%d |", bfCir[i]);
-		}
-		printf("\n");*/
-	}
-
-}
+struct {
+    pthread_mutex_t lock; // thread  que vai estar bloqueada
+    pthread_cond_t cond; // condição que verifica se a thread consumidora ja consumio valor
+    int indexOut; //indice do buffer_out onde vai ser colocado o elemento do buffer_circ
+    int circIndex; //indice do elemento do buffer_circ que vai ser colocado no buffer_out
+    int ready; // variavel que vai funcionar para dizer que a thread está pronta a consumir ou não
+} get = { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER };
 
 
-void* consumidora(void* cont) {
-	while (posBfOUT < tamOUT) {
-		while (verRead <= 0)
-			pthread_cond_wait(&full, &mutexCons);
-		pthread_mutex_lock(&mutexCons);
-		bfOUT[posBfOUT] = bfCir[posBfOUT % tamCir];
-		bfCir[posBfOUT % tamCir] = 0;
-		*((int*)cont) += 1;
-		posBfOUT++;
-		verRead--;
-		pthread_cond_signal(&empty);
-		pthread_mutex_unlock(&mutexCons);
-		/*printf("Buffer OUT : ");
-		for (int i = 0; i < tamOUT; i++) {
-			printf("%d |", bfOUT[i]);
-		}*/
-	}
-}
+void* producer(void*), * consumer(void*);
+
+
 
 int main() {
 
-	//declaração das variáveis thread
-	pthread_t PM_T1, PM_T2, CM_T;
+    int i;
+    for (i = 0; i < tamIN; i++) {
+        bfIN[i] = i + 1; //inicializaçao do buffer_in com interos do 1 a 30000
+    }
 
-	//ciclo for para encher o bfIN com números
-	for (int i = 0, j = 1; i < tamIN; i++, j++) {
-		bfIN[i] = j;
-	}
+    pthread_t PM_T1, PM_T2, CM_T;
 
-	/*printf("Buffer IN : ");
-	for (int i = 0; i < tamIN; i++) {
-		printf("%d |", bfIN[i]);
-	}*/
+    pthread_create(&PM_T1, NULL, producer, NULL); //inicializaçao de thread produtora
+    pthread_create(&PM_T2, NULL, producer, NULL); //inicializaçao de thread produtora
+    pthread_create(&CM_T, NULL, consumer, NULL); //inicializaçao de thread consumidora
 
-	//cria as threads produtoras e consumidora
-	pthread_create(&PM_T1, NULL, produtora, &countP1);
-	pthread_create(&PM_T2, NULL, produtora, &countP2);
-	pthread_create(&CM_T, NULL, consumidora, &countC);
+    pthread_join(PM_T1, NULL);
+    pthread_join(PM_T2, NULL);
+    pthread_join(CM_T, NULL);
 
-	//executa as threads produtoras e consumidora até terminarem
-	pthread_join(PM_T1, NULL);
-	pthread_join(PM_T2, NULL);
-	pthread_join(CM_T, NULL);
+    printf("Buffer OUT : ");
+    for (int i = 0; i < tamOUT; i++) {
+        printf("%d |", bfOUT[i]);
+    }
+    printf("\n\n");
 
-	printf("Buffer OUT : ");
-	for (int i = 0; i < tamOUT; i++) {
-		printf("%d |", bfOUT[i]);
-	}
-	printf("\n\n");
+    printf("Buffer CIRC : ");
+    for (int i = 0; i < tamCirc; i++) {
+        printf("%d |", bfCirc[i]);
+    }
+    printf("\n\n");
 
-	printf("Buffer CIRC : ");
-	for (int i = 0; i < tamCir; i++) {
-		printf("%d |", bfCir[i]);
-	}
-	printf("\n");
+    return 0;
+}
 
-	printf("\n Produtora 1: %d ", countP1);
-	printf("\n Produtora 2:  %d ", countP2);
-	printf("\n Consumidora :  %d \n", countC);
 
+void* producer(void* arg) {
+
+    while(1) {
+
+        pthread_mutex_lock(&put.lock);
+        if (put.iIndex >= tamIN - 2) {
+            pthread_mutex_unlock(&put.lock);
+            return (NULL);
+        }
+        while (bfCirc[put.circIndex] != -1 && bfCirc[put.circIndex] != 0) {
+            pthread_cond_wait(&put.cond, &put.lock); //colocar em espera threads produtoras enquanto o buffer_circ tiver cheio
+        }
+        bfCirc[put.circIndex] = (bfIN[put.iIndex] + bfIN[put.iIndex + 1] + bfIN[put.iIndex + 2]) / 3; //colocar no buffer_circ a media de buffer_in[put.iIndex],buffer_in[put.iIndex+1],buffer_in[put.iIndex+2]
+        put.iIndex++; //incrementar indice do buffer_in
+        put.circIndex++; //incrementar indice do buffer_circ
+        if (put.circIndex == tamCirc) {
+            put.circIndex = 0; //colocar indice do buffer_circ a 0 caso exceda o tamanho maximo do buffer_circ
+        }
+
+        pthread_mutex_unlock(&put.lock);
+
+
+        pthread_mutex_lock(&get.lock);
+
+        get.ready++;
+        pthread_cond_signal(&get.cond); //acordar threads consumidoras quando existir elementos no buffer_circ
+
+        pthread_mutex_unlock(&get.lock);
+
+        //  *((int *) arg) += 1;
+
+
+    }
+
+
+}
+
+void* consumer(void* arg) {
+
+    while(1) {
+
+        pthread_mutex_lock(&get.lock);
+        if (get.indexOut == tamOUT) {
+            pthread_mutex_unlock(&get.lock);
+            return (NULL);  //quando chegar ao fim do buffer_out acaba
+        }
+
+        while (get.ready == 0) {
+            pthread_cond_wait(&get.cond, &get.lock); //colocar em espera thread consumidora enquanto ainda não houver elementos no buffer_circ
+        }
+
+        bfOUT[get.indexOut] = bfCirc[get.circIndex]; //colocar elemento do buffer_circ no buffer_out
+        bfCirc[get.circIndex] = -1; //colocar elemento colocado no buffer_out a -1
+        get.circIndex++; //incrementar indice do buffer_circ
+        get.indexOut++; //incrementar indice do buffer_out
+        get.ready--;
+        if (get.circIndex == tamCirc) {
+            get.circIndex = 0;
+        }
+        pthread_mutex_unlock(&get.lock);
+
+        pthread_mutex_lock(&put.lock);
+        if (bfCirc[put.circIndex] == -1) {
+            pthread_cond_signal(&put.cond); //acordar threads produtoras quando poderem colocar mais elementos no buffer_circ
+        }
+        pthread_mutex_unlock(&put.lock);
+
+
+        // *((int *) arg) += 1;
+
+
+
+    }
 
 }
