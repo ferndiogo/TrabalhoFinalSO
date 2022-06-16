@@ -12,12 +12,6 @@ int bfIN[tamIN];
 int bfCirc[tamCirc];
 int bfOUT[tamOUT];
 
-//Contador para apresentar quantas vezes as threads produziram
-//e consumiram elementos
-int countP1 = 0;
-int countP2 = 0;
-int countC = 0;
-
 //declaração de mutex para bloquear as Threads
 pthread_mutex_t mutexProd = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexCons = PTHREAD_MUTEX_INITIALIZER;
@@ -34,8 +28,7 @@ int posbfOut;
 
 //indica se o buffer circular esta pronto para que uma thread produtora possa la colocar valores
 // e indica se o buffer circular esta pronto para que a thread conasumidora possa consumir os seus valores
-int ready; // variavel que vai funcionar para dizer que a thread está pronta a consumir ou não
-
+int ready; 
 
 void* producer(void*), * consumer(void*);
 
@@ -47,6 +40,11 @@ int main() {
         bfIN[i] = j;
     }
 
+    //Contador para apresentar quantas vezes as threads produziram
+    //e consumiram elementos
+    int countP1 = 0;
+    int countP2 = 0;
+    int countC = 0;
     //declaração das threads
     pthread_t PM_T1, PM_T2, CM_T;
 
