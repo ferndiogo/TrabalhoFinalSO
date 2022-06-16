@@ -3,9 +3,9 @@
 #include <pthread.h>
 
 //definir o tamanho dos vários buffers
-#define tamIN 200
+#define tamIN 20000
 #define tamCirc 50
-#define tamOUT 198
+#define tamOUT 19998
 
 //declaração dos buffers
 int bfIN[tamIN];
@@ -28,15 +28,15 @@ int posbfOut;
 
 //indica se o buffer circular esta pronto para que uma thread produtora possa la colocar valores
 // e indica se o buffer circular esta pronto para que a thread conasumidora possa consumir os seus valores
-int ready; 
+int ready;
 
 void* producer(void*), * consumer(void*);
 
 
 int main() {
-
+    int i, j;
     //ciclo para colocar os valores o buffer IN
-    for (int i = 0, j = 1; i < tamIN; i++, j++) {
+    for (i = 0, j = 1; i < tamIN; i++, j++) {
         bfIN[i] = j;
     }
 
@@ -60,14 +60,14 @@ int main() {
 
     //ciclo para imprimir na consola o buffer OUT
     printf("Buffer OUT : ");
-    for (int i = 0; i < tamOUT; i++) {
+    for (i = 0; i < tamOUT; i++) {
         printf("%d |", bfOUT[i]);
     }
     printf("\n\n");
 
     //ciclo para imprimir na consola o buffer Circular
     printf("Buffer CIRC : ");
-    for (int i = 0; i < tamCirc; i++) {
+    for (i = 0; i < tamCirc; i++) {
         printf("%d |", bfCirc[i]);
     }
     printf("\n\n");
@@ -96,9 +96,9 @@ void* producer(void* count) {
             pthread_cond_wait(&empty, &mutexProd); //colocar em espera threads produtoras enquanto o buffer_circ tiver cheio
         }
         //colocar no buffer_circ a media de 3 posiçoes consecutivas do buffer IN
-        bfCirc[posbfIN % tamCirc] = (bfIN[posbfIN] + bfIN[posbfIN + 1] + bfIN[posbfIN + 2]) / 3; 
+        bfCirc[posbfIN % tamCirc] = (bfIN[posbfIN] + bfIN[posbfIN + 1] + bfIN[posbfIN + 2]) / 3;
         //incrementar a psoiçao do buffer_in
-        posbfIN++; 
+        posbfIN++;
         //incrementa o contador
         *((int*)count) += 1;
         //faz se o desbloqueio da Thread
@@ -134,7 +134,7 @@ void* consumer(void* count) {
         //retirar o valor do buffer circular e colocar no buffer OUT
         bfOUT[posbfOut] = bfCirc[posbfOut % tamCirc];
         //colocar o valor -1 na posiçao de onde se retirou o valor do buffer circular
-        bfCirc[posbfOut % tamCirc] = -1; 
+        bfCirc[posbfOut % tamCirc] = -1;
         //incrementar indice do buffer_out
         posbfOut++;
         //incrementa o contador
